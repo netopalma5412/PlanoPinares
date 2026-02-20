@@ -1,147 +1,24 @@
 <!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Editor PDF PinarAIIllust</title>
-    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-    <style>
-        body { font-family: Arial; margin: 20px; }
-        canvas { border: 1px solid #ccc; max-width: 100%; }
-        form { margin: 20px 0; }
-        button { padding: 10px; margin: 5px; }
-        #admin { background: #f0f0f0; padding: 20px; }
-        input { margin: 5px; padding: 5px; }
-    </style>
-</head>
-<body>
-    <h1>Editor Interactivo PDF - PinarAIIllust</h1>
-    
-    <!-- Formulario Registro Usuario -->
-    <form id="registroForm">
-        <h3>Registro Usuario</h3>
-        <input type="text" id="nombre" placeholder="Nombre" required>
-        <input type="number" id="vivienda" placeholder="N° Vivienda (ej. 15)" required>
-        <input type="color" id="color" value="#FF0000" title="Color para resaltar">
-        <button type="submit">Registrar y Generar PDF</button>
-    </form>
-
-    <!-- Vista Previa Canvas -->
-    <canvas id="pdfCanvas"></canvas>
-
-    <!-- Panel Admin (login simple) -->
-    <div id="admin" style="display:none;">
-        <h3>Panel Admin</h3>
-        <input type="password" id="adminPass" placeholder="Contraseña Admin">
-        <button onclick="loginAdmin()">Login Admin</button>
-        <div id="adminControls" style="display:none;">
-            <button onclick="agregarBoton()">Agregar Botón</button>
-            <button onclick="agregarImagen()">Agregar Imagen Enlace</button>
-            <button onclick="generarLinea()">Agregar Línea</button>
-            <p>Usuarios registrados: <span id="usuariosList"></span></p>
-        </div>
-    </div>
-
-    <script>
-        let pdfDoc = null;
-        let pdfBytes = null;
-        const { PDFDocument, rgb, StandardFonts } = PDFLib;
-
-        // Cargar PDF inicial
-        async function loadPDF() {
-            const url = 'https://raw.githubusercontent.com/netopalma5412/ArchivoSVG/refs/heads/main/PinarAIIllust.svg'; // Coloca tu PDF aquí
-            const existingPdfBytes = await fetch(url).then(res => res.arrayBuffer());
-            pdfDoc = await PDFDocument.load(existingPdfBytes);
-            pdfBytes = existingPdfBytes;
-
-            // Renderizar primera página en canvas
-            const pdfjsLib = await import('https://unpkg.com/pdfjs-dist@4.0.379/build/pdf.min.mjs');
-            const pdf = await pdfjsLib.getDocument({ data: existingPdfBytes }).promise;
-            const page = await pdf.getPage(1);
-            const canvas = document.getElementById('pdfCanvas');
-            const ctx = canvas.getContext('2d');
-            const viewport = page.getViewport({ scale: 1.0 });
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-            page.render({ canvasContext: ctx, viewport });
-        }
-
-        // Formulario Registro
-        document.getElementById('registroForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const nombre = document.getElementById('nombre').value;
-            const vivienda = document.getElementById('vivienda').value;
-            const color = document.getElementById('color').value;
-
-            // Modificar PDF
-            const pages = pdfDoc.getPages();
-            const firstPage = pages[0];
-            const { width, height } = firstPage.getSize();
-
-            // Fuente para texto
-            const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-            // Resaltar polígono vivienda (ej. asume posición aproximada basada en mapa)
-            const polyX = 100 + (vivienda * 10); // Ajusta coordenadas según tu mapa
-            const polyY = height - 200;
-            firstPage.drawRectangle({
-                x: polyX, y: polyY, width: 20, height: 20,
-                color: rgb(parseInt(color.substr(1,2),16)/255, parseInt(color.substr(3,2),16)/255, parseInt(color.substr(5,2),16)/255),
-            });
-            firstPage.drawText(`Vivienda ${vivienda} - ${nombre}`, {
-                x: polyX, y: polyY - 10, size: 12, font: font,
-            });
-
-            // Guardar y descargar
-            const pdfDataUri = await pdfDoc.saveAsBase64({ dataUri: true });
-            const link = document.createElement('a');
-            link.href = pdfDataUri;
-            link.download = `Pinar_${vivienda}_${nombre}.pdf`;
-            link.click();
-        });
-
-        // Funciones Admin
-        function loginAdmin() {
-            if (document.getElementById('adminPass').value === 'admin123') { // Cambia contraseña
-                document.getElementById('adminControls').style.display = 'block';
-            }
-        }
-
-        async function agregarBoton() {
-            const pages = pdfDoc.getPages();
-            const firstPage = pages[0];
-            const buttonRect = firstPage.context.obj({ Type: 'Annot', Subtype: 'Widget', Rect: [200, 700, 250, 720] });
-            firstPage.node.addAnnot(buttonRect); // Botón simple (requiere viewer compatible)
-            downloadPDF();
-        }
-
-        async function agregarImagen() {
-            const pages = pdfDoc.getPages();
-            const firstPage = pages[0];
-            const pngImageBytes = await fetch('https://via.placeholder.com/50x50/ff0000/ffffff?text=Enlace').then(res => res.arrayBuffer());
-            const pngImage = await pdfDoc.embedPng(pngImageBytes);
-            firstPage.drawImage(pngImage, { x: 300, y: 600, width: 50, height: 50 });
-            // Enlace: Usa anotación Link
-            downloadPDF();
-        }
-
-        async function generarLinea() {
-            const pages = pdfDoc.getPages();
-            const firstPage = pages[0];
-            firstPage.drawLine({ start: { x: 400, y: 500 }, end: { x: 450, y: 550 }, thickness: 2, color: rgb(0,0,1) });
-            downloadPDF();
-        }
-
-        async function downloadPDF() {
-            const pdfDataUri = await pdfDoc.saveAsBase64({ dataUri: true });
-            const link = document.createElement('a');
-            link.href = pdfDataUri;
-            link.download = 'Pinar_editado.pdf';
-            link.click();
-        }
-
-        // Inicializar
-        loadPDF();
-    </script>
-</body>
-</html>
-
+<!--
+Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+Click nbfs://nbhost/SystemFileSystem/Templates/ClientSide/html.html to edit this template
+-->
+<html>
+    <head>
+        <title>Pinares de Suiza</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body>
+        <!--<div>Aqui</div>-->
+        <div style="width: 100%; max-width: 1000px; height: 90vh; margin: 20px auto; border: 1px solid #ccc; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15); position: relative;">
+    <iframe src="https://drive.google.com/file/d/1Yg2Pk50gUavu1UVJCBQ_3XOqxOJW7Ib3/view?usp=sharing"
+            width="100%"
+            height="100%"
+            allowfullscreen
+            webkitallowfullscreen
+            mozallowfullscreen
+            style="border: none; position: absolute; top: 0; left: 0;"
+            loading="lazy">
+    </iframe>
+</div>
