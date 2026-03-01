@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Plano Pinares de Suiza – Zoom Mejorado</title>
+    
     <style>
         body { margin: 0; padding: 0; height: 100vh; overflow: hidden; background: #f8f9fa; }
         #map-container {
@@ -41,7 +42,7 @@
     <script>
         let panZoom;
 
-        fetch('https://cdn.jsdelivr.net/gh/netopalma5412/ArchivoSVG@main/PinarAI.svg')
+        fetch('https://cdn.jsdelivr.net/gh/netopalma5412/ArchivoNvoSVG1/Desktop/ArchivoNvoSVG@main/PinarAI.svg')
             .then(res => res.text())
             .then(svgText => {
                 document.getElementById('map-container').innerHTML = svgText;
